@@ -1,0 +1,66 @@
+service: stackott
+provider:
+  name: aws
+  runtime: dotnetcore3.1
+  stage: dev
+  region: us-east-1
+  deploymentBucket:
+    name: ${file(./env.yml):${self:provider.stage}.deploymentbucket.name}
+  environment:
+    MAIN_PRODUCT: ${self:custom.product}
+    MAINQUEUE_NAME: ${self:custom.mainQueue.name}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:*
+          Resource: arn:aws:sqs:us-east-1:430525806551:dev-crmpro-main-queue
+
+plugins:
+  - serverless-deployment-bucket
+  - serverless-s3-remover
+  - serverless-dependson-plugin
+  - serverless-plugin-additional-stacks
+
+custom:
+  product: crmpro  
+  mainQueue:
+    name: ${self:provider.stage}-${self:custom.product}-main-queue
+    arn: arn:aws:sqs:#{AWS::Region}:#{AWS::AccountId}:${self:provider.stage}-${self:custom.product}-main-queue
+  mainDeadLetterQueue:
+    name: ${self:provider.stage}-${self:custom.product}-main-deadletter-queue
+    arn: arn:aws:sqs:#{AWS::Region}:#{AWS::AccountId}:${self:provider.stage}-${self:custom.product}-main-deadletter-queue
+  remover:
+     buckets:
+       - ${self:provider.deploymentBucket}
+  additionalStacks:
+    permanent:
+      Deploy: Before
+      Resources:                 
+        MainQueue:
+          Type: AWS::SQS::Queue
+          Properties:
+            QueueName: ${self:custom.mainQueue.name}
+
+functions:  
+  Send:    
+    handler: AWSServerless1::AWSServerless1.Functions::Send
+    name: ${self:provider.stage}-${self:custom.product}-send         
+    events:
+      - http:
+          method: get
+          path: /send
+          cors: true   
+  Consume:    
+    handler: AWSServerless1::AWSServerless1.Functions::Consume
+    name: ${self:provider.stage}-${self:custom.product}-consume      
+    memorySize: 256
+    timeout: 30
+    events:
+      - sqs:
+            #arn: arn:aws:sqs:us-east-1:430525806551:dev-crmpro-main-queue
+            arn: ${self:custom.mainQueue.arn}
+
+package:
+  artifact: bin/Release/netcoreapp3.1/deploy-package.zip

@@ -1,0 +1,104 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: An AWS Serverless Application.
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        PolicyName: allowSqs
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - sqs:SendMessage
+            - sqs:DeleteMessage
+            - sqs:ChangeMessageVisibility
+            - sqs:ReceiveMessage
+            - sqs:TagQueue
+            - sqs:UntagQueue
+            - sqs:PurgeQueue
+            Resource: arn:aws:sqs:us-east-1:430525806551:MinhaServelessQueue
+  Get:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: AWSServerless1::AWSServerless1.Functions::Get
+      Runtime: dotnetcore3.1
+      CodeUri: ''
+      MemorySize: 256
+      Timeout: 30
+      Role:
+      Policies:
+      - AWSLambdaBasicExecutionRole
+      Events:
+        RootGet:
+          Type: Api
+          Properties:
+            Path: "/"
+            Method: GET
+  Send:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: AWSServerless1::AWSServerless1.Functions::Send
+      Runtime: dotnetcore3.1
+      CodeUri: ''
+      MemorySize: 256
+      Timeout: 30
+      Role:
+      Policies:
+      - AWSLambdaBasicExecutionRole
+      - AWSLambdaSQSQueueExecutionRole
+      Events:
+        RootGet:
+          Type: Api
+          Properties:
+            Path: "/send"
+            Method: GET
+  Consume:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: AWSServerless1::AWSServerless1.Functions::Consume
+      Runtime: dotnetcore3.1
+      CodeUri: ''
+      MemorySize: 256
+      Timeout: 30
+      Role:
+      Policies:
+      - AWSLambdaSQSQueueExecutionRole
+      Events:
+        MySQSEvent:
+          Type: SQS
+          Properties:
+            Queue: arn:aws:sqs:us-east-1:430525806551:MinhaServelessQueue
+            BatchSize: 1
+        RootGet:
+          Type: Api
+          Properties:
+            Path: "/consume"
+            Method: GET
+  TestTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: TestAPI_ID
+        AttributeType: S
+      - AttributeName: Name
+        AttributeType: S
+      KeySchema:
+      - AttributeName: TestAPI_ID
+        KeyType: HASH
+      TableName: Serverless_Table
+      ProvisionedThroughput:
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 10
+  MyServelessQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MinhaServelessQueue
+Outputs:
+  ApiURL:
+    Description: API endpoint URL for Prod environment
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/

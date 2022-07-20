@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "serverless-dependson-plugin": "^1.1.2",
+    "serverless-deployment-bucket": "^1.6.0"
+  },
+  "dependencies": {
+    "serverless-dotnet": "^1.6.1",
+    "serverless-plugin-additional-stacks": "^1.6.0",
+    "serverless-s3-remover": "^0.6.0"
+  }
+}
